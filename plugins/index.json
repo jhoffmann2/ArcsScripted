@@ -1,3 +1,5 @@
 ﻿{
-
+  "SnapTiles": { "type": "toggle", "hidden": true, "value": true, "plugin": "SnapTiles" },
+  "Market": { "type": "toggle", "hidden": true, "value": true, "plugin": "Market" },
+  "PlayerPieces": { "type": "toggle", "hidden": true, "value": true, "plugin": "PlayerPieces" }
 }

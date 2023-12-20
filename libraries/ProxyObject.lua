@@ -624,7 +624,6 @@ function spawnObjectJSON(parameters)
       _callback_function(ProxyObject(spawnedObject))
     end
   end
-
   return ProxyObject(_spawnObjectJSON(UnSharedRecursive(parameters)))
 end
 
@@ -783,6 +782,7 @@ end
 Turns = setmetatable({}, turnsMetatable)
 
 -- redefine owner because SharedData may have been included before this
+---@type tts__Object
 owner = [[##OWNER##]]
 
 --TODO: find a way to wrap self without breaking UI
