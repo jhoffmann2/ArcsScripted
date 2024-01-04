@@ -42,20 +42,27 @@ function Callback.SimulateObjectDrop(player_color, object)
 end
 
 function Method.MoveObjectToTile(player_color, object)
-  InvokeEvent("SimulateObjectPickup", player_color, object)
   local destination = shared.zone.getPosition()
-  object.setPositionSmooth(destination, false, true)
-  Wait.condition(
-    function()
-      InvokeEvent("SimulateObjectDrop", player_color, object)
-    end,
-    function()
-      return object.getPositionSmooth() == nil
-    end
-  )
+  InvokeEvent("SimulateObjectPickup", player_color, object)
+  object.setPosition(destination)
+  InvokeEvent("SimulateObjectDrop", player_color, object)
+  
+  --object.setPositionSmooth(destination, false, true)
+  --Wait.condition(
+  --  function()
+  --    InvokeEvent("SimulateObjectDrop", player_color, object)
+  --  end,
+  --  function()
+  --    return object.getPositionSmooth() == nil
+  --  end
+  --)
 end
 
 function onObjectPickUp(player_color, object)
+  if #shared.zone.getTags() ~= 0 and not object.hasMatchingTag(shared.zone) then
+    return
+  end
+  
   wasObjectInZoneOnPickup[object.guid] = (objectsInZone[object.guid] == true)
 end
 
@@ -67,15 +74,37 @@ end
 function onObjectDrop(player_color, object)
   if object.guid == owner.guid then
     Method.UpdateZoneTransforms()
+    return
   end
 
-  Wait.frames( -- wait a few frames so that snaps can take place
+  if #shared.zone.getTags() ~= 0 and not object.hasMatchingTag(shared.zone) then
+    return
+  end
+  
+  Wait.frames( -- wait a few frame so that snaps can take place
     function()
-      if (wasObjectInZoneOnPickup[object.guid] or objectsInZone[object.guid]) then
-        Method.Organize()
+      if object.isDestroyed() then
+        return
       end
-      wasObjectInZoneOnPickup[object.guid] = nil
+      if (objectsInZone[object.guid]) then
+        InvokeEvent('OnObjectDroppedInSnapTile', player_color, owner, object)
+      elseif (wasObjectInZoneOnPickup[object.guid]) then
+        InvokeEvent('OnObjectDroppedOutsideSnapTile', player_color, owner, object)
+        wasObjectInZoneOnPickup[object.guid] = nil
+      end
     end, 1)
+end
+
+function Callback.OnObjectDroppedInSnapTile(player_color, snapTile, object)
+  if snapTile.guid == owner.guid then
+    Wait.frames(function() Method.Organize() end, 1)
+  end
+end
+
+function Callback.OnObjectDroppedOutsideSnapTile(player_color, snapTile, object)
+  if snapTile.guid == owner.guid then
+    Wait.frames(function() Method.Organize() end, 1)
+  end
 end
 
 function onObjectEnterZone(zone, object)
@@ -111,7 +140,7 @@ function Method.Organize()
       printToAll("Too many objects on snap tile")
       break
     end
-    if object.GetStateId() ~= 1 then
+    if object.GetStateId() ~= 1 and object.GetStateId() ~= -1 then
       object = object.setState(1)
     end
     object.setPosition(snapPoints[i].position)

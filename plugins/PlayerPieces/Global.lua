@@ -2,6 +2,10 @@
 local ShipSupplyOffset = Vector(20.04, 1.45, -16.34) - Vector(27.35, 1.45, -15.18)
 -- offset from player board
 local AgentSupplyOffset = Vector(21.14, 1.45, -14.62) - Vector(27.35, 1.45, -15.18)
+-- offset from player board
+local TrophyTileOffset = Vector(28.29, 1.47, -16.17) - Vector(27.35, 1.45, -15.18)
+-- offset from player board
+local CaptiveTileOffset = Vector(31.16, 1.47, -16.20) - Vector(27.35, 1.45, -15.18)
 
 function onLoad()
   local PlayerShipTiles = getObjectsWithTag("PlayerShipSupply")
@@ -15,6 +19,20 @@ function onLoad()
   if not PlayerAgentTiles or #PlayerAgentTiles == 0 then
     for _, board in ipairs(getObjectsWithTag('PlayerBoard')) do
       local PlayerAgentSupply = SpawnPlayerAgentSupply(board)
+    end
+  end
+
+  local PlayerTrophyTiles = getObjectsWithTag("PlayerTrophyTile")
+  if not PlayerTrophyTiles or #PlayerTrophyTiles == 0 then
+    for _, board in ipairs(getObjectsWithTag('PlayerBoard')) do
+      local PlayerTrophyTile = SpawnTrophySnapTile(board)
+    end
+  end
+
+  local PlayerCaptiveTiles = getObjectsWithTag("PlayerCaptiveTile")
+  if not PlayerCaptiveTiles or #PlayerCaptiveTiles == 0 then
+    for _, board in ipairs(getObjectsWithTag('PlayerBoard')) do
+      local PlayerCaptiveTile = SpawnCaptiveSnapTile(board)
     end
   end
 
@@ -37,20 +55,20 @@ end
 function OnReturnPieceToSupply(player_color, position)
   for i, piece in ipairs(Player[player_color].getSelectedObjects()) do
     if piece.getStateId() ~= 1 and piece.hasTag('Ship') then
-      piece = piece.setState(1) -- un-damage ships
+      local new_piece = piece.setState(1) -- un-damage ships
+      if new_piece then
+        piece = new_piece
+      end
     end
-    Wait.frames(
-      function()
-        local supply = getObjectsWithAllTags({ "Player" .. piece.getName() .. "Supply", getPieceColor(piece) })
-        if supply and supply[1] then
-          InvokeMethod("MoveObjectToTile", supply[1], player_color, piece)
-        end
-      end, i - 1)
+    local supply = getObjectsWithAllTags({ "Player" .. piece.getName() .. "Supply", getPieceColor(piece) })
+    if supply and supply[1] then
+      InvokeMethod("MoveObjectToTile", supply[1], player_color, piece)
+    end
   end
 end
 
 function getPieceColor(piece)
-  for _, color in ipairs(Player.getColors()) do
+  for _, color in ipairs(Player.getAvailableColors()) do
     if piece.hasTag(color) then
       return color
     end
@@ -70,6 +88,88 @@ function Callback.OnPublish()
   for _, object in ipairs(getObjectsWithAnyTags({ 'PlayerShipSupply', 'PlayerAgentSupply' })) do
     destroyObject(object)
   end
+end
+
+---@param board tts__Object
+---@eturn tts__Object
+function SpawnTrophySnapTile(board)
+  local snapTags = {}
+  local result = spawnObjectData({
+    position = board.getPosition() + TrophyTileOffset,
+    scale = Vector(2.78, 0.01, 1.92),
+    rotation = Vector(0.0, board.getRotation().y, 0.0),
+    data = {
+      Name = "BlockSquare",
+      Transform = { posX = 20.0449867, posY = 1.45282972, posZ = -16.34428,
+                    rotX = 0.0, rotY = 0.0, rotZ = 0.0,
+                    scaleX = 3.42264748, scaleY = 0.01, scaleZ = 1.5291481 },
+      Nickname = "",
+      Description = "",
+      GMNotes = "",
+      ColorDiffuse = Color(0.0, 0.0, 0.0, 0.0),
+      Tags = { "PlayerTrophyTile", getPieceColor(board), "SnapTile", "DynamicSnapGrid" },
+      LayoutGroupSortIndex = 0,
+      Value = 0,
+      Locked = true,
+      Grid = true,
+      Snap = true,
+      IgnoreFoW = false,
+      MeasureMovement = false,
+      DragSelectable = true,
+      Autoraise = true,
+      Sticky = true,
+      Tooltip = true,
+      GridProjection = false,
+      HideWhenFaceDown = false,
+      Hands = false,
+      LuaScript = "",
+      LuaScriptState = "",
+      XmlUI = "",
+    },
+    callback_function = OnSnapTileSpawn(snapTags)
+  })
+  return result
+end
+
+---@param board tts__Object
+---@return tts__Object
+function SpawnCaptiveSnapTile(board)
+  local snapTags = {}
+  local result = spawnObjectData({
+    position = board.getPosition() + CaptiveTileOffset,
+    scale = Vector(2.15, 0.01, 1.77),
+    rotation = Vector(0.0, board.getRotation().y, 0.0),
+    data = {
+      Name = "BlockSquare",
+      Transform = { posX = 20.0449867, posY = 1.45282972, posZ = -16.34428,
+                    rotX = 0.0, rotY = 0.0, rotZ = 0.0,
+                    scaleX = 3.42264748, scaleY = 0.01, scaleZ = 1.5291481 },
+      Nickname = "",
+      Description = "",
+      GMNotes = "",
+      ColorDiffuse = Color(0.0, 0.0, 0.0, 0.0),
+      Tags = { "PlayerCaptiveTile", getPieceColor(board), "SnapTile", "DynamicSnapGrid" },
+      LayoutGroupSortIndex = 0,
+      Value = 0,
+      Locked = true,
+      Grid = true,
+      Snap = true,
+      IgnoreFoW = false,
+      MeasureMovement = false,
+      DragSelectable = true,
+      Autoraise = true,
+      Sticky = true,
+      Tooltip = true,
+      GridProjection = false,
+      HideWhenFaceDown = false,
+      Hands = false,
+      LuaScript = "",
+      LuaScriptState = "",
+      XmlUI = "",
+    },
+    callback_function = OnSnapTileSpawn(snapTags)
+  })
+  return result
 end
 
 ---@param board tts__Object
@@ -172,7 +272,6 @@ function SpawnPlayerShipSupply(board)
     },
     callback_function = OnSnapTileSpawn(snapTags)
   })
-  --Wait.frames(function() InvokeMethod("SetSnapTags", result, snapTags) end, 5)
   return result
 end
 
@@ -255,6 +354,5 @@ function SpawnPlayerAgentSupply(board)
     },
     callback_function = OnSnapTileSpawn(snapTags)
   })
-  --Wait.frames(function() InvokeMethod("SetSnapTags", result, snapTags) end, 5)
   return result
 end

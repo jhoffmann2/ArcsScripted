@@ -211,6 +211,15 @@ function ProxyObject(object)
   function mt.translate(vector)
     return mt.ttsObject.translate(UnShared(vector))
   end
+  
+  function mt.hasMatchingTag(object)
+    local otherMt = getmetatable(object)
+    if otherMt then
+      return mt.ttsObject.hasMatchingTag(otherMt.ttsObject)
+    else
+      return mt.ttsObject.hasMatchingTag(object)
+    end
+  end
 
   ---@param tag string
   ---@return boolean

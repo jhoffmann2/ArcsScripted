@@ -1,8 +1,28 @@
 ﻿
 local cardOffset = Vector(35.16, 1.45, -4.76) - Vector(36.89, 1.43, -4.76)
 
-function onLoad()
+function onLoad(save_string)
+  local save_data = {}
+  if save_string and save_string ~= '' then
+    save_data = JSON.decode(save_string)
+  end
+  if save_data.rows then
+    shared.rows = {}
+    for color, guid in pairs(save_data.rows) do
+      shared.rows[color] = getObjectFromGUID(guid)
+    end
+  end
   AddContextMenuToObject(owner)
+  end
+
+function onSave()
+  local save_data = {}
+
+  save_data.rows = {}
+  for color, row in pairs(shared.rows) do
+    save_data.rows[color] = row.guid
+  end
+  return JSON.encode(save_data)
 end
 
 function AddContextMenuToObject(object)
@@ -34,10 +54,7 @@ function onScriptingButtonDown(index, player_color)
   if minBounds.x < pointerPosition.x and maxBounds.x > pointerPosition.x and minBounds.z < pointerPosition.z and maxBounds.z > pointerPosition.z then
     printToColor("Influencing "..tostring(index).." Times", player_color)
     for i = 1, index do
-      Wait.frames(
-        function()
-          OnInfluence(player_color, pointerPosition)
-        end, i)
+      OnInfluence(player_color, pointerPosition, i)
     end
   end
 end
@@ -49,57 +66,82 @@ function IsCardInMarketSlot(card)
 end
 
 function onObjectDrop(colorName, object)
+  if object.type ~= 'Card' then
+    return
+  end
   Wait.frames(function ()
-    if object.type == 'Card' and IsCardInMarketSlot(object) then
+    if object.isDestroyed() then
+      return
+    end
+    if IsCardInMarketSlot(object) then
       AddContextMenuToObject(object)
     end
   end, 1)
 end
 
-function CanSecure()
-  return false
-end
-
-function CanRansack()
-  return false
-end
-
-function OnInfluence(player_color, menu_position)
+function OnInfluence(player_color, menu_position, i)
+  if i == nil then
+    i = 1
+  end
   local agentSupply = getObjectsWithAllTags({ "PlayerAgentSupply", player_color })[1]
   local agentSupplyZone = Shared(agentSupply).zone
   local agents = agentSupplyZone.getObjects()
-  if agents and #agents > 0 then
-    for _, agent in ipairs(agents) do
-      if agent.getPositionSmooth() == nil then---@type tts__Object
-        InvokeEvent("SimulateObjectPickup", player_color, agent)
-        local destination = owner.getPosition() + Vector(-2, 0, 0)
-        agent.setPositionSmooth(destination, false, true)
-        Wait.condition(
-          function()
-            InvokeEvent("SimulateObjectDrop", player_color, agent)
-          end,
-          function()
-            return agent.getPositionSmooth() == nil
-          end
-        )
-        break
-      end
-    end
+  if agents and #agents >= i then
+    InvokeEvent("SimulateObjectPickup", player_color, agents[i])
+    local destination = owner.getPosition() + Vector(-2, 0, 0)
+    agents[i].setPosition(destination)
+    InvokeEvent("SimulateObjectDrop", player_color, agents[i])
   else
     printToColor("You're out of agents", player_color)
   end
 end
 
+function CanSecure(player_color)
+  local maxAgentCount = 0
+  local maxAgentColor = nil
+  for color, row in pairs(shared.rows) do
+    local agentCount = #Shared(row).zone.getObjects()
+    if agentCount > maxAgentCount then
+      maxAgentCount = agentCount
+      maxAgentColor = color
+    elseif agentCount == maxAgentCount then
+      maxAgentColor = nil -- don't allow ties
+    end
+  end
+  return maxAgentColor == player_color
+end
+
 function OnSecure(player_color, menu_position)
-  if not CanSecure() then
+  if not CanSecure(player_color) then
     printToColor("You cannot secure this card.", player_color)
+    return
   end
   
-  
+  for color, row in pairs(shared.rows) do
+    local supply
+    if color == player_color then
+      supply = getObjectsWithAllTags({ "PlayerAgentSupply", player_color }) -- send player pieces back to supply
+    else
+      supply = getObjectsWithAllTags({ "PlayerCaptiveTile", player_color }) -- send rival pieces to Captives
+    end
+
+    for i, piece in ipairs(Shared(row).zone.getObjects()) do
+      InvokeMethod("MoveObjectToTile", supply[1], player_color, piece)
+    end
+  end
 end
 
 function OnRansack(player_color, menu_position)
-  if not CanRansack() then
-    printToColor("You cannot ransack this card.", player_color)
+  for color, row in pairs(shared.rows) do
+    local supply
+    if color == player_color then
+      supply = getObjectsWithAllTags({ "PlayerAgentSupply", player_color }) -- send player pieces back to supply
+    else
+      supply = getObjectsWithAllTags({ "PlayerTrophyTile", player_color }) -- send rival pieces to Trophies
+    end
+
+    for i, piece in ipairs(Shared(row).zone.getObjects()) do
+      InvokeMethod("MoveObjectToTile", supply[1], player_color, piece)
+    end
   end
 end

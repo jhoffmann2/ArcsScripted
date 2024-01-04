@@ -79,14 +79,14 @@ function SpawnMarketSlot(Index)
     }
   })
 
+  Shared(marketSlot).rows = {}
   local colors = Player.getAvailableColors()
   for i, color in ipairs(colors) do
-    local position = marketSlot.getPosition()               
+    local position = marketSlot.getPosition()
     position.x = position.x + 40.59 - 39.08
     position.y = position.y + 0.01
     position.z = position.z + ((marketSlot.getScale().z / (2.25 * (#colors + 1))) * (i - 2.5))
-
-    local row = SpawnInfluenceRow(position, color, marketSlot)
+    Shared(marketSlot).rows[color] = SpawnInfluenceRow(position, color, marketSlot) -- saved in Market/MarketSlot.lua
   end
   
   return marketSlot
